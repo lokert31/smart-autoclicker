@@ -38,6 +38,18 @@ sleep_shift_end_min = config.SLEEP_SHIFT_END_MIN
 sleep_shift_end_max = config.SLEEP_SHIFT_END_MAX
 sleep_shift_enabled = config.SLEEP_SHIFT_ENABLED
 
+# Параметры замедления кликов из config.py
+slow_down_enabled = config.SLOW_DOWN_ENABLED
+slow_down_probability = config.SLOW_DOWN_PROBABILITY
+slow_down_min_delay = config.SLOW_DOWN_MIN_DELAY
+slow_down_max_delay = config.SLOW_DOWN_MAX_DELAY
+slow_down_duration_min = config.SLOW_DOWN_DURATION_MIN
+slow_down_duration_max = config.SLOW_DOWN_DURATION_MAX
+
+# Множитель для уменьшения кликов
+slow_down_multiplier_min = config.SLOW_DOWN_MULTIPLIER_MIN
+slow_down_multiplier_max = config.SLOW_DOWN_MULTIPLIER_MAX
+
 # Преобразуем время из строкового формата в объект времени
 def parse_time(time_str):
     return datetime.strptime(time_str, "%H:%M")
@@ -64,6 +76,21 @@ def should_sleep():
         return True
     return False
 
+# Функция замедления кликов
+def slow_down():
+    if random.random() < slow_down_probability:
+        # Выбираем случайную длительность замедления
+        slow_down_duration = random.randint(slow_down_duration_min, slow_down_duration_max)
+        # Выбираем случайную задержку
+        slow_down_delay = random.uniform(slow_down_min_delay, slow_down_max_delay)
+        # Выбираем случайный множитель уменьшения кликов
+        slow_down_multiplier = random.uniform(slow_down_multiplier_min, slow_down_multiplier_max)
+        
+        print(f"Замедление кликов на {slow_down_duration} секунд с задержкой {slow_down_delay:.2f} секунд и множителем {slow_down_multiplier:.2f}.")
+        
+        return slow_down_delay, slow_down_multiplier, slow_down_duration
+    return 0, 1, 0  # Возвращаем задержку и множитель 1 (без замедления)
+
 # Функция автокликера
 def auto_clicker():
     global running
@@ -76,21 +103,41 @@ def auto_clicker():
 
     start_time = time.time()  # Запоминаем время начала работы
 
+    slow_down_delay = 0
+    slow_down_multiplier = 1
+    slow_down_duration = 0
+
     while running and (time.time() - start_time) < work_duration:
         # 95% вероятность оставить координаты неизменными
         if random.random() > 0.95:  # 5% вероятность смены координат
             current_x = random.randint(x_min, x_max)
             current_y = random.randint(y_min, y_max)
 
+        # Применяем замедление, если оно включено
+        if slow_down_enabled and slow_down_duration == 0:
+            slow_down_delay, slow_down_multiplier, slow_down_duration = slow_down()
+
         # Случайная задержка для 10-15 кликов в секунду
         delay = 1 / random.randint(min_clicks, max_clicks)
+
+        # Увеличиваем задержку, если было замедление
+        delay += slow_down_delay
+
+        # Корректируем количество кликов в секунду в зависимости от множителя замедления
+        clicks_per_second = int(random.randint(min_clicks, max_clicks) * slow_down_multiplier)
 
         # Выполнение клика
         mouse.position = (current_x, current_y)
         mouse.click(Button.left, 1)
 
         # Задержка
-        time.sleep(delay)
+        time.sleep(1 / clicks_per_second)
+
+        # Отсчитываем время замедления
+        if slow_down_duration > 0:
+            slow_down_duration -= 1
+            if slow_down_duration == 0:
+                print("Замедление завершено")
 
     # Пауза между подходами (в секундах)
     pause_duration = random.randint(min_pause, max_pause)
