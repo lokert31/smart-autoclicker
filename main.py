@@ -8,8 +8,6 @@ from datetime import datetime, timedelta
 import os  # Для работы с файлом
 import json  # Для сохранения данных в файл
 
-
-
 # Управление мышью
 mouse = Controller()
 
@@ -88,6 +86,14 @@ def slow_down():
         return slow_down_delay, slow_down_duration
     return 0, 0  # Без замедления
 
+# Функция для задержки зажатия мыши, чтобы имитировать удержание
+def press_and_hold():
+    # Установим нажатие клавиши на несколько миллисекунд для имитации
+    hold_duration = random.uniform(0.01, 0.03)  # время удержания от 10 до 100 миллисекунд
+    mouse.press(Button.left)  # Зажимаем клавишу
+    time.sleep(hold_duration)  # Удерживаем
+    mouse.release(Button.left)  # Отпускаем клавишу
+
 # Обновленная функция автокликера
 def auto_clicker():
     global running, click_count_session, click_count_total
@@ -133,7 +139,7 @@ def auto_clicker():
 
         # Если курсор не изменился, используем последнюю известную позицию
         if cursor_position:
-            mouse.click(Button.left, 1)
+            press_and_hold()  # Вызываем функцию для задержки зажатия
 
             # Увеличение счетчиков кликов
             click_count_session += 1
@@ -157,9 +163,6 @@ def auto_clicker():
     pause_duration = random.randint(config.MIN_PAUSE, config.MAX_PAUSE)
     print(f"Пауза перед следующим подходом: {pause_duration} секунд.")
     time.sleep(pause_duration)
-
-
-
 
 # Функция для отслеживания сочетания клавиш
 def on_press(key):
