@@ -5,6 +5,10 @@ import threading
 from pynput.mouse import Button, Controller
 from pynput.keyboard import Listener, Key
 from datetime import datetime, timedelta
+import os  # Для работы с файлом
+import json  # Для сохранения данных в файл
+
+
 
 # Управление мышью
 mouse = Controller()
@@ -30,6 +34,9 @@ slow_down_duration_max = config.SLOW_DOWN_DURATION_MAX
 slow_down_multiplier_min = config.SLOW_DOWN_MULTIPLIER_MIN
 slow_down_multiplier_max = config.SLOW_DOWN_MULTIPLIER_MAX
 
+# Добавляем вероятность смены позиции курсора
+cursor_change_probability = config.CURSOR_CHANGE_PROBABILITY
+
 # Параметры работы автокликера
 min_work_time = config.MIN_WORK_TIME
 max_work_time = config.MAX_WORK_TIME
@@ -38,6 +45,29 @@ max_pause = config.MAX_PAUSE
 
 # Флаг для работы автокликера
 running = True
+
+# Файл для хранения общего количества кликов
+CLICKS_FILE = "clicks_data.json"
+
+# Глобальные переменные для подсчета кликов
+click_count_session = 0  # Количество кликов за текущий запуск
+click_count_total = 0  # Общее количество кликов
+
+# Функция для загрузки общего количества кликов из файла
+def load_click_count():
+    global click_count_total
+    if os.path.exists(CLICKS_FILE):
+        with open(CLICKS_FILE, "r") as file:
+            data = json.load(file)
+            click_count_total = data.get("total_clicks", 0)
+    else:
+        click_count_total = 0
+
+# Функция для сохранения общего количества кликов в файл
+def save_click_count():
+    global click_count_total
+    with open(CLICKS_FILE, "w") as file:
+        json.dump({"total_clicks": click_count_total}, file)
 
 # Функция для выбора случайного маленького квадрата внутри большого
 def get_random_small_square():
@@ -58,65 +88,87 @@ def slow_down():
         return slow_down_delay, slow_down_duration
     return 0, 0  # Без замедления
 
-# Функция автокликера
+# Обновленная функция автокликера
 def auto_clicker():
-    global running
-    start_time = time.time()  # Запоминаем время начала работы
+    global running, click_count_session, click_count_total
+    # Загрузка общего количества кликов
+    load_click_count()
+    print("Общее количество кликов (загружено):", click_count_total)
 
-    # Время работы (в секундах)
-    work_duration = random.randint(min_work_time, max_work_time)
-
-    # Таймер для смены маленького квадрата
-    next_square_change_time = time.time() + random.randint(config.SQUARE_CHANGE_MIN_TIME, config.SQUARE_CHANGE_MAX_TIME)
+    # Генерация первого маленького квадрата
     current_square = get_random_small_square()
+    print(f"Первый квадрат выбран: {current_square}")
 
-    # Время работы (в секундах)
-    slow_down_delay, slow_down_duration = 0, 0
+    # Устанавливаем время до следующей смены квадрата
+    next_square_change_time = time.time() + random.randint(config.SQUARE_CHANGE_MIN_TIME, config.SQUARE_CHANGE_MAX_TIME)
 
+    # Время работы автокликера
+    start_time = time.time()
+    work_duration = random.randint(config.MIN_WORK_TIME, config.MAX_WORK_TIME)
+
+    # Флаг для контроля обновления позиции курсора
+    cursor_position = None  # Начальная позиция не установлена
+
+    # Основной цикл автокликера
     while running and (time.time() - start_time) < work_duration:
-        # Проверяем, нужно ли менять маленький квадрат
+        # Проверяем, нужно ли менять квадрат
         if time.time() > next_square_change_time:
-            # Сменить квадрат и установить время для следующей смены
+            # Смена квадрата
             current_square = get_random_small_square()
             next_square_change_time = time.time() + random.randint(config.SQUARE_CHANGE_MIN_TIME, config.SQUARE_CHANGE_MAX_TIME)
-            print(f"Сменили квадрат на: {current_square}")
-            
-            # Пауза после смены квадрата
+            print(f"Квадрат изменен на: {current_square}")
+
+            # Пауза перед началом кликов
             pause_duration = random.randint(config.SQUARE_PAUSE_MIN_TIME, config.SQUARE_PAUSE_MAX_TIME)
-            print(f"Пауза после смены квадрата: {pause_duration} секунд")
+            print(f"Скрипт уходит на паузу перед продолжением кликов: {pause_duration} секунд.")
             time.sleep(pause_duration)
-        
-        # Выбираем случайные координаты внутри текущего маленького квадрата
-        x = random.randint(current_square[0], current_square[2])
-        y = random.randint(current_square[1], current_square[3])
 
-        # Замедление, если оно включено
-        slow_down_delay, slow_down_duration = slow_down()
+        # Вероятность изменения позиции курсора
+        if random.random() < config.CURSOR_CHANGE_PROBABILITY:
+            # Случайные координаты внутри текущего квадрата
+            x = random.randint(current_square[0], current_square[2])
+            y = random.randint(current_square[1], current_square[3])
+            cursor_position = (x, y)
+            mouse.position = cursor_position
 
-        # Выполнение клика
-        mouse.position = (x, y)
-        mouse.click(Button.left, 1)
+        # Если курсор не изменился, используем последнюю известную позицию
+        if cursor_position:
+            mouse.click(Button.left, 1)
 
-        # Задержка между кликами с учетом замедления
-        time.sleep(1 / random.randint(min_clicks, max_clicks) + slow_down_delay)
+            # Увеличение счетчиков кликов
+            click_count_session += 1
+            click_count_total += 1
 
-        # Если время замедления истекло, то выключаем замедление
-        if slow_down_duration > 0:
-            slow_down_duration -= 1
-            if slow_down_duration == 0:
-                print("Замедление завершено.")
+        # Выводим прогресс работы (можно убрать или настроить)
+        if click_count_session % 100 == 0:
+            print(f"Клики за сессию: {click_count_session}, общее количество кликов: {click_count_total}")
 
-    # Пауза между подходами (в секундах)
-    pause_duration = random.randint(min_pause, max_pause)
+        # Задержка между кликами
+        time.sleep(1 / random.randint(config.MIN_CLICKS, config.MAX_CLICKS))
+
+    # Работа завершена, выводим итог и уходим на общую паузу
+    print(f"Скрипт завершил работу. Клики за сессию: {click_count_session}")
+    print(f"Общее количество кликов: {click_count_total}")
+
+    # Сохраняем общий счетчик кликов
+    save_click_count()
+
+    # Пауза между подходами
+    pause_duration = random.randint(config.MIN_PAUSE, config.MAX_PAUSE)
     print(f"Пауза перед следующим подходом: {pause_duration} секунд.")
     time.sleep(pause_duration)
+
+
+
 
 # Функция для отслеживания сочетания клавиш
 def on_press(key):
     global running
     if key == Key.ctrl_l:  # Проверяем нажатие Ctrl (левая клавиша)
         running = False  # Останавливаем программу
-        print("Скрипт остановлен!")
+        print(f"Скрипт остановлен. Клики за сессию: {click_count_session}")
+        print(f"Общее количество кликов: {click_count_total}")
+        save_click_count()  # Сохраняем общее количество кликов
         return False  # Завершаем слушатель клавиш
 
 # Запуск автокликера в отдельном потоке
