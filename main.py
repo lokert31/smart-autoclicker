@@ -3,13 +3,14 @@ import time
 import random
 import threading
 from pynput.mouse import Button, Controller
-from pynput.keyboard import Listener, Key
-from datetime import datetime, timedelta
+from pynput.keyboard import Key, Controller as KeyboardController, Listener
+from datetime import datetime
 import os
 import json
 
-# Управление мышью
+# Управление мышью и клавиатурой
 mouse = Controller()
+keyboard = KeyboardController()
 
 # Параметры из config.py
 min_clicks = config.MIN_CLICKS
@@ -37,6 +38,10 @@ max_work_time = config.MAX_WORK_TIME
 min_pause = config.MIN_PAUSE
 max_pause = config.MAX_PAUSE
 
+# Новые параметры из config.py
+command_r_interval = config.COMMAND_R_INTERVAL
+command_r_pause_range = config.COMMAND_R_PAUSE_RANGE
+
 running = True
 CLICKS_FILE = "clicks_data.json"
 click_count_session = 0
@@ -63,18 +68,21 @@ def get_random_small_square():
     y_max_square = y_min_square + small_square_size
     return x_min_square, y_min_square, x_max_square, y_max_square
 
-def slow_down():
-    if random.random() < slow_down_probability:
-        slow_down_duration = random.randint(slow_down_duration_min, slow_down_duration_max)
-        slow_down_delay = random.uniform(slow_down_min_delay, slow_down_max_delay)
-        return slow_down_delay, slow_down_duration
-    return 0, 0
-
 def press_and_hold():
     hold_duration = random.uniform(0.03, 0.1)
     mouse.press(Button.left)
     time.sleep(hold_duration)
     mouse.release(Button.left)
+
+def perform_command_r():
+    print("Нажимаем Command + R")
+    keyboard.press(Key.cmd)
+    keyboard.press('r')
+    keyboard.release('r')
+    keyboard.release(Key.cmd)
+    pause_duration = random.uniform(*command_r_pause_range)
+    print(f"Пауза после Command + R: {pause_duration:.2f} секунд")
+    time.sleep(pause_duration)
 
 def auto_clicker():
     global running, click_count_session, click_count_total
@@ -87,7 +95,7 @@ def auto_clicker():
     start_time = time.time()
     work_duration = random.randint(config.MIN_WORK_TIME, config.MAX_WORK_TIME)
 
-    cursor_position = None
+    clicks_until_command_r = random.randint(*command_r_interval)  # Случайное количество кликов до Command + R
 
     while running and (time.time() - start_time) < work_duration:
         if time.time() > next_square_change_time:
@@ -101,13 +109,16 @@ def auto_clicker():
         if random.random() < config.CURSOR_CHANGE_PROBABILITY:
             x = random.randint(current_square[0], current_square[2])
             y = random.randint(current_square[1], current_square[3])
-            cursor_position = (x, y)
-            mouse.position = cursor_position
+            mouse.position = (x, y)
 
-        if cursor_position:
-            press_and_hold()
-            click_count_session += 1
-            click_count_total += 1
+        press_and_hold()
+        click_count_session += 1
+        click_count_total += 1
+
+        # Проверяем необходимость нажатия Command + R
+        if click_count_session % clicks_until_command_r == 0:
+            perform_command_r()
+            clicks_until_command_r = random.randint(*command_r_interval)  # Пересчитываем до следующего раза
 
         if click_count_session % 100 == 0:
             print(f"Клики за сессию: {click_count_session}, общее количество кликов: {click_count_total}")
