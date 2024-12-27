@@ -54,4 +54,4 @@ SLOW_DOWN_MULTIPLIER_MAX = 0.8  # Максимальный множитель у
 
 
 COMMAND_R_INTERVAL = (1500, 2500)  # Диапазон кликов между нажатием Command + R
-COMMAND_R_PAUSE_RANGE = (20, 40)  # Диапазон паузы после нажатия Command + R в секундах
+COMMAND_R_PAUSE_RANGE = (30, 40)  # Диапазон паузы после нажатия Command + R в секундах

@@ -1,6 +1,7 @@
 import config
 import time
 import random
+import pyautogui
 import threading
 from pynput.mouse import Button, Controller
 from pynput.keyboard import Key, Controller as KeyboardController, Listener
@@ -75,14 +76,12 @@ def press_and_hold():
     mouse.release(Button.left)
 
 def perform_command_r():
-    print("Нажимаем Command + R")
-    keyboard.press(Key.cmd)
-    keyboard.press('r')
-    keyboard.release('r')
-    keyboard.release(Key.cmd)
-    pause_duration = random.uniform(*command_r_pause_range)
+    print("Нажимаем Command + R через pyautogui")
+    pyautogui.hotkey('command', 'r')  # Используем комбинацию клавиш
+    pause_duration = random.uniform(*command_r_pause_range)  # Диапазон паузы
     print(f"Пауза после Command + R: {pause_duration:.2f} секунд")
     time.sleep(pause_duration)
+
 
 def auto_clicker():
     global running, click_count_session, click_count_total
