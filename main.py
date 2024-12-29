@@ -95,8 +95,11 @@ def auto_clicker():
     work_duration = random.randint(config.MIN_WORK_TIME, config.MAX_WORK_TIME)
 
     clicks_until_command_r = random.randint(*command_r_interval)  # Случайное количество кликов до Command + R
+    slow_down_active = False
+    slow_down_end_time = 0
 
     while running and (time.time() - start_time) < work_duration:
+        # Проверяем необходимость смены квадрата
         if time.time() > next_square_change_time:
             current_square = get_random_small_square()
             next_square_change_time = time.time() + random.randint(config.SQUARE_CHANGE_MIN_TIME, config.SQUARE_CHANGE_MAX_TIME)
@@ -105,11 +108,25 @@ def auto_clicker():
             print(f"[{current_time}] Скрипт уходит на паузу перед продолжением кликов: {pause_duration} секунд.")
             time.sleep(pause_duration)
 
+        # Проверяем вероятность активации замедления
+        if slow_down_enabled and not slow_down_active and random.random() < slow_down_probability:
+            slow_down_active = True
+            slow_down_end_time = time.time() + random.uniform(slow_down_duration_min, slow_down_duration_max)
+            slow_down_multiplier = random.uniform(slow_down_multiplier_min, slow_down_multiplier_max)
+            print(f"Замедление активировано на {slow_down_end_time - time.time():.2f} секунд с множителем {slow_down_multiplier:.2f}.")
+
+        # Отключаем замедление, если время истекло
+        if slow_down_active and time.time() >= slow_down_end_time:
+            slow_down_active = False
+            print("Замедление деактивировано.")
+
+        # Перемещаем курсор с вероятностью
         if random.random() < config.CURSOR_CHANGE_PROBABILITY:
             x = random.randint(current_square[0], current_square[2])
             y = random.randint(current_square[1], current_square[3])
             mouse.position = (x, y)
 
+        # Нажимаем и отпускаем мышь
         press_and_hold()
         click_count_session += 1
         click_count_total += 1
@@ -119,16 +136,22 @@ def auto_clicker():
             perform_command_r()
             clicks_until_command_r = random.randint(*command_r_interval)  # Пересчитываем до следующего раза
 
+        # Печатаем количество кликов каждые 100
         if click_count_session % 100 == 0:
             print(f"Клики за сессию: {click_count_session}, общее количество кликов: {click_count_total}")
 
-        time.sleep(1 / random.randint(config.MIN_CLICKS, config.MAX_CLICKS))
+        # Рассчитываем задержку между кликами
+        if slow_down_active:
+            time.sleep(slow_down_multiplier / random.randint(min_clicks, max_clicks))
+        else:
+            time.sleep(1 / random.randint(min_clicks, max_clicks))
 
     print(f"Скрипт завершил работу. Клики за сессию: {click_count_session}")
     print(f"Общее количество кликов: {click_count_total}")
     save_click_count()
 
-    pause_duration = random.randint(config.MIN_PAUSE, config.MAX_PAUSE)
+    # Пауза между подходами
+    pause_duration = random.randint(min_pause, max_pause)
     current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     print(f"[{current_time}] Пауза перед следующим подходом: {pause_duration} секунд.")
     time.sleep(pause_duration)
@@ -136,6 +159,7 @@ def auto_clicker():
     # Запускаем следующий подход
     if running:
         main_thread()
+
 
 def on_press(key):
     global running
