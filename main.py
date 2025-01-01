@@ -69,6 +69,19 @@ def get_random_small_square():
     y_max_square = y_min_square + small_square_size
     return x_min_square, y_min_square, x_max_square, y_max_square
 
+def move_cursor_smoothly(target_x, target_y, duration=0.5, steps=50):
+    """
+    Плавное перемещение курсора к указанным координатам.
+    """
+    start_x, start_y = mouse.position
+    step_time = duration / steps
+
+    for step in range(steps):
+        current_x = start_x + (target_x - start_x) * (step + 1) / steps
+        current_y = start_y + (target_y - start_y) * (step + 1) / steps
+        mouse.position = (current_x, current_y)
+        time.sleep(step_time)
+
 def press_and_hold():
     hold_duration = random.uniform(0.03, 0.1)
     mouse.press(Button.left)
@@ -81,7 +94,6 @@ def perform_command_r():
     pause_duration = random.uniform(*command_r_pause_range)  # Диапазон паузы
     print(f"Пауза после Command + R: {pause_duration:.2f} секунд")
     time.sleep(pause_duration)
-
 
 def auto_clicker():
     global running, click_count_session, click_count_total
@@ -101,7 +113,14 @@ def auto_clicker():
     while running and (time.time() - start_time) < work_duration:
         # Проверяем необходимость смены квадрата
         if time.time() > next_square_change_time:
-            current_square = get_random_small_square()
+            new_square = get_random_small_square()
+            target_x = random.randint(new_square[0], new_square[2])
+            target_y = random.randint(new_square[1], new_square[3])
+
+            print(f"Перемещение курсора в новый квадрат: ({target_x}, {target_y})")
+            move_cursor_smoothly(target_x, target_y, duration=random.uniform(0.5, 1.5))
+
+            current_square = new_square
             next_square_change_time = time.time() + random.randint(config.SQUARE_CHANGE_MIN_TIME, config.SQUARE_CHANGE_MAX_TIME)
             pause_duration = random.randint(config.SQUARE_PAUSE_MIN_TIME, config.SQUARE_PAUSE_MAX_TIME)
             current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -124,7 +143,7 @@ def auto_clicker():
         if random.random() < config.CURSOR_CHANGE_PROBABILITY:
             x = random.randint(current_square[0], current_square[2])
             y = random.randint(current_square[1], current_square[3])
-            mouse.position = (x, y)
+            move_cursor_smoothly(x, y, duration=random.uniform(0.3, 0.7))
 
         # Нажимаем и отпускаем мышь
         press_and_hold()
@@ -159,7 +178,6 @@ def auto_clicker():
     # Запускаем следующий подход
     if running:
         main_thread()
-
 
 def on_press(key):
     global running
