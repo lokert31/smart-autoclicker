@@ -3,13 +3,13 @@ MIN_CLICKS = 7  # Минимальное количество кликов в с
 MAX_CLICKS = 8  # Максимальное количество кликов в секунду
 
 # РАНДОМИЗАЦИЯ ОБЛАСТЕЙ КЛИКА
-BIG_SQUARE_X_MIN = 465
-BIG_SQUARE_X_MAX = 1132
-BIG_SQUARE_Y_MIN = 400
-BIG_SQUARE_Y_MAX = 880
+BIG_SQUARE_X_MIN = 132
+BIG_SQUARE_X_MAX = 1000
+BIG_SQUARE_Y_MIN = 330
+BIG_SQUARE_Y_MAX = 930
 SMALL_SQUARE_SIZE = 3  # Размер маленького квадрата
 # Вероятность смены значения курсора при клике (в процентах)
-CURSOR_CHANGE_PROBABILITY = 0.1  # 30% вероятность
+CURSOR_CHANGE_PROBABILITY = 0.01  # 30% вероятность
 
 
 SQUARE_CHANGE_MIN_TIME = 70  # Минимальное время в секундах до смены квадрата
